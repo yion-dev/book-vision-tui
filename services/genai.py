@@ -7,7 +7,7 @@ from google import genai
 from google.genai.types import GenerateContentResponse
 
 from config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_PROMPT
-from interfaces import BookType
+from interfaces import BookData, BookType
 from state import AppState
 
 class GenAiService:
@@ -37,10 +37,24 @@ class GenAiService:
         ])
         return response
 
-    def format_response(self,content: GenerateContentResponse) -> BookType:
+    def format_response(self,content: GenerateContentResponse) -> BookData:
         if not content.text:
             raise ValueError("Gemini Response Content Text is not Valid")
-        return json.loads(content.text) 
+    
+        data = json.loads(content.text)
+        return BookData(
+            title=data.get("title") or "",
+            author=data.get("author") or [],
+            isbn=data.get("isbn") or "",
+            subtitle=data.get("subtitle") or "",
+            publisher=data.get("publisher") or "",
+            published_date=data.get("published_date") or "",
+            page_count=data.get("page_count") or 0,
+            category=data.get("category") or [],
+            description=data.get("description") or "",
+            cover_path=data.get("cover_url") or "",
+            book_url=data.get("book_url") or ""
+        )
 
     def open_image(self, path: Path) -> pil.Image:
         pil_image = pil.open(path)

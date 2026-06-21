@@ -10,8 +10,8 @@ class BookType():
 @dataclass
 class CoordinateType:
     x1: float
-    x2: float
     y1: float
+    x2: float
     y2: float
 
 @dataclass
@@ -25,5 +25,5 @@ class BookData:
     page_count: int = 0
     category: list[str] = field(default_factory=list)
     description: str = ""
-    cover_path: Path = Path("")
+    cover_path: Path | None | str = None
     book_url: str = ""

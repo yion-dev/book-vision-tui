@@ -92,24 +92,3 @@ class HistoryTab(Static):
     def is_scanning(self) -> bool:
         return self._scanning
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        event.stop()
-        if event.button.id == "btn-stop":
-            self._scanning = not self._scanning
-            btn = self.query_one("#btn-stop", Button)
-            if self._scanning:
-                btn.label = "⏹ Stop"
-                btn.variant = "error"
-            else:
-                btn.label = "▶ Resume"
-                btn.variant = "success"
-            self.post_message(self.StopPressed(self._scanning))
-
-        elif event.button.id == "btn-export":
-            path = Path("book_history.csv")
-            with path.open("w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=["time", "isbn", "title", "author"])
-                writer.writeheader()
-                writer.writerows(self._rows)
-            self.notify(f"Saved {len(self._rows)} rows → {path}", title="Exported")
-            self.post_message(self.ExportPressed(path))

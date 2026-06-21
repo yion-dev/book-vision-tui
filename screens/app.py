@@ -2,13 +2,13 @@ from cv2 import VideoCapture
 from textual.containers import Horizontal, Vertical
 from textual.events import Key
 
-from config import CAMERA_MOBILE_URL, SAMPLE_BOOK
+from config import CURRENT_CAMERA, SAMPLE_BOOK
 from screens.widgets.book_card import BookCard
 from screens.widgets.scan_history import HistoryTab
 from state import AppState
 
 from textual.app import App, ComposeResult
-from textual.widgets import Button, Header
+from textual.widgets import Button, Header, LoadingIndicator
 
 from services.cv2 import CameraService
 from services.genai import GenAiService
@@ -17,44 +17,57 @@ from services.yolo import DetectionService
 class Screen(App):
 
     CSS = """
-    
-    Screen {
-        layout: vertical;
-    }
-    
-    #main-row {
-        height: 100%;
-    }
- 
-    BookCard {
-        width: 100%;
-        height: 50%;
-    }
- 
-    HistoryTab {
-        width: 100%;
-        height: 40%;
-    }
+        Screen {
+            layout: vertical;
+        }
+        
+        #main-row {
+            height: 1fr;
+        }
+        
+        #left-panel {
+            width: 50%;
+            height: 100%;
+        }
+        
+        #right-panel {
+            width: 50%;
+            height: 100%;
+        }
 
-    #button-row Button {
-        margin-right: 1;
-        min-width: 14;
-        border: none;
-        height: 3;
+        CameraView {
+            width: 100%;
+            height: 1fr;
+        }
 
-    }
+        BookCard {
+            width: 100%;
+            height: 50%;
+        }
 
-    #button-row {
-        height: auto;
-        width: 100%;
-        layout: horizontal;
-        align: right middle;
-        padding: 0 1;
-        border-top: solid $primary-darken-2;
-        background: transparent;
-    }
+        HistoryTab {
+            width: 100%;
+            height: 1fr;
+        }
+
+        #button-row {
+            height: auto;
+            width: 100%;
+            layout: horizontal;
+            align: right middle;
+            padding: 0 1;
+            border-top: solid $primary-darken-2;
+            background: transparent;
+        }
+
+        #button-row Button {
+            margin-right: 1;
+            min-width: 14;
+            border: none;
+            height: 3;
+        }
     """
- 
+     
     TITLE = "Book Scanner"
     SUB_TITLE = "Scan a book or smth"
     THEME = "rose-pine-moon"
@@ -69,37 +82,69 @@ class Screen(App):
 
         self.detection = DetectionService(self.state)
         
-        self.camera = CameraService(self.state, self.detection)
+        self.camera = CameraService(self.state, self.detection, self.gemini)
         self.capture_camera: VideoCapture | None = None
 
     def on_mount(self) -> None:
         try:
+
+            self.query_one("#loading", LoadingIndicator).display = False
+            self.set_interval(1, self.check_result)
             self.theme = "rose-pine-moon"
 
-            self.capture_camera = self.camera.open_camera(CAMERA_MOBILE_URL)
-            self.camera.start_camera(self.capture_camera)
+            client = self.gemini.initialize_gemini_client()
+            self.state.genai_client = client
 
-            history = self.query_one("#HistoryTab", HistoryTab)
-            history.add_entry("9780134685991", "Effective Java",  "Joshua Bloch")
-            history.add_entry("9780132350884", "Clean Code",      "Robert C. Martin")
-        
         except Exception as e:
             self.notify("ERROR: " + str(e), severity="error")
 
     def on_key(self, event: Key) -> None:
         if event.key == "escape" and self.capture_camera:
-            self.camera.release_camera(self.capture_camera)
+            self.camera.release_camera()
             self.exit()
 
+    def check_result(self):
+        if self.state.genai_response:
+            book = self.state.genai_response
+            self.query_one(BookCard).update_book(book)
+            self.query_one(HistoryTab).add_entry(
+                isbn=book.isbn or "",
+                title=book.title or "",
+                author=", ".join(book.author) if book.author else ""
+            )
+
+            self.query_one(BookCard).display = True
+            self.query_one(LoadingIndicator).display = False
+            
+            self.state.genai_response = None
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        match event.button.id:
+            case "btn-stop":
+                self.camera.release_camera()
+                self.capture_camera = None
+                self.notify("Stopped")
+
+            case "btn-scan":
+                self.query_one(BookCard).display = False
+                self.query_one(LoadingIndicator).display = True
+
+                if self.capture_camera:
+                    self.camera.release_camera()
+                    self.capture_camera = None
+
+                self.capture_camera = self.camera.open_camera(CURRENT_CAMERA)
+                self.camera.start_camera(self.capture_camera)
+                self.notify("Scanning...")
+    
     def compose(self) -> ComposeResult:
- 
         yield Header()
         
         with Vertical(id="main-row"):
+            yield LoadingIndicator(id="loading")
             yield BookCard(SAMPLE_BOOK, id="BookCard")
             yield HistoryTab(id="HistoryTab")
-        
+            
             with Horizontal(id="button-row"):
                 yield Button("\\[STOP]", id="btn-stop", variant="error")
-                yield Button("\\[Export CSV]", id="btn-export", variant="primary")
-
+                yield Button("\\[SCAN BOOK]", id="btn-scan", variant="primary")

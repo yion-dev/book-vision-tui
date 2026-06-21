@@ -1,12 +1,17 @@
+from io import BytesIO
 from pathlib import Path
 
 from PIL import Image
+from rich import get_console
 from textual import work
 from textual.app import ComposeResult
 from textual.widgets import Static, Label
 from textual.containers import Vertical, Horizontal
 
+from config import GOOGLE_BOOK_API
 from interfaces import BookData
+
+import requests
 
 try:
     from textual_image.widget import Image as TXImage
@@ -32,13 +37,13 @@ class BookCard(Static):
     }
 
     BookCard #cover-col {
-        width: 24;
+        width: 25;
         height: 18;
         margin-right: 2;
     }
 
     BookCard #cover-placeholder {
-        width: 24;
+        width: 25;
         height: 18;
         margin-right: 2;
         content-align: center middle;
@@ -135,36 +140,47 @@ class BookCard(Static):
                 yield Label(bookurl if bookurl else "", id="book-url")
     
     def on_mount(self) -> None:
-        #self.notify(f"{self._book.cover_path} | {HAS_TX_IMAGE}")
 
         if self._book.cover_path and HAS_TX_IMAGE:
             self._fetch_cover(self._book.cover_path)
 
     @work(thread=True)
-    def _fetch_cover(self, path: Path) -> None:
-        if not path or not HAS_TX_IMAGE:
+    def _fetch_cover(self, url: str) -> None:
+        if not url or not HAS_TX_IMAGE:
             return
         try:
-            img = Image.open(path).convert("RGB")
-            #self.app.call_from_thread(self.notify, f"Image loaded: {img.size}")
-            self.app.call_from_thread(
-                    self.query_one("#cover-col", TXImage).__setattr__, # type: ignore[misc]
-                "image", img,
-            )
-            #self.app.call_from_thread(self.notify, "Image set on widget")
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+            img = Image.open(BytesIO(response.content)).convert("RGB")  # BytesIO not path
+            if TXImage:
+                self.app.call_from_thread(
+                    self.query_one("#cover-col", TXImage).__setattr__,
+                    "image", img,
+                )
         except Exception as e:
             self.app.call_from_thread(self.notify, f"Cover error: {e}", severity="error")
+
+    def get_cover_url(self, isbn: str) -> str | None:
+        url = f"https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}&key={GOOGLE_BOOK_API}"
+        response = requests.get(url, timeout=5)
+        data = response.json()
+        
+        if data.get("totalItems", 0) == 0:
+            return None
+        
+        image_links = data["items"][0]["volumeInfo"].get("imageLinks", {})
+        return image_links.get("thumbnail") or image_links.get("smallThumbnail")
 
     def update_book(self, book_data: BookData) -> None:
         self._book = book_data
         info = book_data
-
-        self.query_one("#book-title",       Label).update(info.title)
-        self.query_one("#book-subtitle",    Label).update(info.subtitle)
+        self.query_one("#book-title", Label).update(info.title or "")
+        self.query_one("#book-subtitle", Label).update(info.subtitle or "")
         authors = info.author
-        self.query_one("#book-author",      Label).update("by " + ", ".join(authors) if authors else "")
-        self.query_one("#book-description", Label).update(info.description[:280])
-        self.query_one("#book-url", Label).update(info.book_url)           
-
-        if info.cover_path and TXImage:
-            self._fetch_cover(info.cover_path)
+        self.query_one("#book-author", Label).update("by " + ", ".join(authors) if authors else "")
+        self.query_one("#book-description", Label).update(info.description[:280] if info.description else "")
+        self.query_one("#book-url", Label).update(info.book_url or "")
+        
+        if info.cover_path and info.cover_path != Path(""):
+            cover = self.get_cover_url(info.isbn)
+            self._fetch_cover(cover)
