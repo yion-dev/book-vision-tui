@@ -29,7 +29,7 @@ GEMINI_PROMPT = """Analyze the book in the image and respond ONLY with a valid J
 If you cannot identify the book respond with all string fields as null and arrays as empty arrays and page_count as 0."""
 
 CAMERA_INDEX = 0
-CAMERA_MOBILE_URL = "http://192.168.2.101:4747/video"
+CAMERA_MOBILE_URL = "http://172.25.55.207:4747/video"
 CURRENT_CAMERA=CAMERA_MOBILE_URL
 
 YOLO_MODEL_N = BASE_DIR / "models" / "yolo11n.pt"
@@ -39,19 +39,15 @@ YOLO_MODEL_L = BASE_DIR / "models" / "yolo11l.pt"
 USED_MODEL = YOLO_MODEL_L
 
 SAMPLE_BOOK = BookData(
-    title="Effective Java",
-    author=["Joshua Bloch"],
-    isbn="9780134685991",
-    category=["Computers", "Programming"],
-    subtitle="Third Edition",
-    publisher="Addison-Wesley Professional",
-    published_date="2018-01-06",
-    page_count=412,
-    description=(
-        "Since this Jolt-award winning classic was last updated in 2008, "
-        "the Java programming environment has changed dramatically. Java 7 "
-        "and Java 8 introduced new features and idioms that challenge developers."
-    ),
-    cover_path=BASE_DIR / "outputs" / "content.jpg",
-    book_url="https://books.google.com/books?id=BIpDDwAAQBAJ",
+    title="\\[BOOK TITLE]",
+    author=["\\[AUTHOR]"],
+    isbn="\\[ISBN]",
+    category=["\\[CATEGORY(s)]"],
+    subtitle="\\[SUBTITLE]",
+    publisher="\\[PUBLISHER]",
+    published_date="\\[DATE]",
+    page_count=0,
+    description=("\\[DESCRIPTION]"),
+    cover_path="#",
+    book_url="\\[BOOKURL]",
 )

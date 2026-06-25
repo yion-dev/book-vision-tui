@@ -1,4 +1,5 @@
 from cv2 import VideoCapture
+from google.genai._interactions.types.error_event import Error
 from textual.containers import Horizontal, Vertical
 from textual.events import Key
 
@@ -93,6 +94,7 @@ class Screen(App):
             self.theme = "rose-pine-moon"
 
             client = self.gemini.initialize_gemini_client()
+            self.capture_camera = self.camera.open_camera(CURRENT_CAMERA)
             self.state.genai_client = client
 
         except Exception as e:
@@ -119,23 +121,29 @@ class Screen(App):
             self.state.genai_response = None
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        match event.button.id:
-            case "btn-stop":
-                self.camera.release_camera()
-                self.capture_camera = None
-                self.notify("Stopped")
-
-            case "btn-scan":
-                self.query_one(BookCard).display = False
-                self.query_one(LoadingIndicator).display = True
-
-                if self.capture_camera:
+        try:
+            match event.button.id:
+                case "btn-stop":
                     self.camera.release_camera()
                     self.capture_camera = None
+                    self.notify("Stopped")
 
-                self.capture_camera = self.camera.open_camera(CURRENT_CAMERA)
-                self.camera.start_camera(self.capture_camera)
-                self.notify("Scanning...")
+                case "btn-scan":
+                    self.query_one(BookCard).display = False
+                    self.query_one(LoadingIndicator).display = True
+
+                    if self.capture_camera:
+                        self.camera.release_camera()
+                        self.capture_camera = None
+
+                    self.capture_camera = self.camera.open_camera(CURRENT_CAMERA)
+                    self.camera.start_camera(self.capture_camera)
+                    self.notify("Scanning...")
+        except Exception as e:
+            self.notify(f"Error Occured: {e}", severity="error")
+            self.query_one(LoadingIndicator).display = False
+            self.query_one(BookCard).display = True
+
     
     def compose(self) -> ComposeResult:
         yield Header()

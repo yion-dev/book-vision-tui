@@ -38,8 +38,9 @@ class BookCard(Static):
 
     BookCard #cover-col {
         width: 25;
-        height: 18;
+        height: 16;
         margin-right: 2;
+        border: solid  $accent;
     }
 
     BookCard #cover-placeholder {
