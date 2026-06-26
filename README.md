@@ -27,10 +27,8 @@ Camera → YOLO detection → Crop frame → Gemini (identify) → Google Books 
 ```fish
 git clone git@github.com:yion-dev/book-vision-tui.git
 cd book-vision-tui
-
 python -m venv venv
 source venv/bin/activate.fish   # or venv/bin/activate for bash/zsh
-
 pip install -r requirements.txt
 ```
 
@@ -52,6 +50,7 @@ python main.py
 | `q` | Quit |
 
 In the TUI:
+
 - **Stop / Resume** — pause or resume the camera scanning loop
 - **Export CSV** — saves the scan history table to `book_history.csv`
 
@@ -72,15 +71,18 @@ YOLO weights are not committed to this repo (see `.gitignore`). Download the one
 ├── config.py
 ├── interfaces.py
 ├── main.py
-├── models/              # YOLO weights (not tracked)
+├── state.py
+├── models/                  # YOLO weights (not tracked)
 ├── screens/
-│   ├── app.py           # Textual App entrypoint
-│   └── widgets/         # BookCard, HistoryTab, etc.
-├── services/
-│   ├── cv2.py           # Camera capture loop
-│   ├── genai.py         # Gemini integration
-│   └── yolo.py          # YOLO detection service
-└── state.py             # Shared app state
+│   ├── app.py               # Textual App entrypoint
+│   └── widgets/
+│       ├── book_card.py
+│       ├── camera_view.py
+│       └── scan_history.py
+└── services/
+    ├── cv2.py                # Camera capture loop
+    ├── genai.py               # Gemini integration
+    └── yolo.py                # YOLO detection service
 ```
 
 ## License
